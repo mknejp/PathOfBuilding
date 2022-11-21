@@ -2057,6 +2057,7 @@ function calcs.offence(env, actor, activeSkill)
 		if skillModList:Flag(nil, "NeverCrit") then
 			output.PreEffectiveCritChance = 0
 			output.CritChance = 0
+			output.CritChancePast8Sec = 0
 			output.CritMultiplier = 0
 			output.BonusCritDotMultiplier = 0
 			output.CritEffect = 1
@@ -2121,6 +2122,11 @@ function calcs.offence(env, actor, activeSkill)
 					end
 				end
 			end
+			if skillModList:Flag(nil, "Condition:CritInPast8Sec") then
+				output.CritChancePast8Sec = 100
+			else
+				output.CritChancePast8Sec = m_max(0, m_min(1, 1 - (1 - output.CritChance / 100) ^ (8 * output.Speed))) * 100
+			end
 			if skillModList:Flag(cfg, "NoCritMultiplier") then
 				output.CritMultiplier = 1
 			else
@@ -2152,6 +2158,17 @@ function calcs.offence(env, actor, activeSkill)
 					s_format("+ [ (%.4f x %g) ^8(portion of damage from crits)", critChancePercentage, output.CritMultiplier),
 					s_format("= %.3f", output.CritEffect),
 				}
+			end
+		end
+
+		-- Calculate Elemental Overload uptime
+		for _, keystone in ipairs(skillModList:List(nil, "Keystone")) do
+			if keystone == "Elemental Overload" then
+				output.ElementalOverloadTime = output.CritChancePast8Sec
+				local notes = s_format("%d%% Chance to Crit in Past 8 Seconds", output.CritChancePast8Sec)
+				local keywords = bor(KeywordFlag.Hit, KeywordFlag.Ailment)
+				skillModList:ReplaceMod("ElementalDamage", "MORE", output.CritChancePast8Sec / 100 * 40, "Tree:22088", 0, keywords, { type = notes })
+				break
 			end
 		end
 
